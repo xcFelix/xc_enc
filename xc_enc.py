@@ -21,24 +21,28 @@ def get_new_path(old_path, new_path):
                 _base_name = os.path.basename(abs_path)
                 files.append(util.file.XFile(
                     abs_path,
-                    _abc_new_path + config.CONFIG__SUFFIX)
+                    _abc_new_path)
                 )
             else:
-                assert abs_path.endswith(config.CONFIG__SUFFIX)
                 files.append(util.file.XFile(
                     abs_path,
-                    _abc_new_path[:-len(config.CONFIG__SUFFIX)])
+                    _abc_new_path)
                 )
         else:
             get_new_path(abs_path, _abc_new_path)
 
 
-def enc(f, lock, current_file_size, total_file_size, XF):
+def enc(f, lock, current_file_size, total_file_size, XF_NAME, XF_DATA):
     pre = 0
+
     with open(f.origin_path, 'rb') as f_r:
         with open(f.output_path, 'wb') as f_w:
+            enc_name = XF_NAME.encrypt(f.origin_name.encode())
+            f_w.write(len(enc_name).to_bytes(config.CONFIG__BYTES, byteorder='big'))
+            f_w.write(enc_name)
+
             while data := f_r.read(config.CONFIG__CHUNK_SIZE):
-                _data = XF.encrypt(data)
+                _data = XF_DATA.encrypt(data)
                 f_w.write(len(_data).to_bytes(config.CONFIG__BYTES, byteorder='big'))
                 f_w.write(_data)
 
@@ -53,19 +57,28 @@ def enc(f, lock, current_file_size, total_file_size, XF):
         util.progress.progressbar(current_file_size.value, total_file_size.value)
 
 
-def dec(f, lock, current_file_size, total_file_size, XF):
+def dec(f, lock, current_file_size, total_file_size, XF_NAME, XF_DATA):
     pre = 0
     with open(f.origin_path, 'rb') as f_r:
-        with open(f.output_path, 'wb') as f_w:
+        bs = f_r.read(config.CONFIG__BYTES)
+        cnt = int.from_bytes(bs, byteorder='big')
+        enc_name = f_r.read(cnt)
+        org_name = XF_NAME.decrypt(enc_name).decode()
+        o_path = os.path.join(os.path.dirname(f.output_path), org_name)
+
+        with lock:
+            current_file_size.value += cnt + config.CONFIG__BYTES
+
+        with open(o_path, 'wb') as f_w:
             while bs := f_r.read(config.CONFIG__BYTES):
                 cnt = int.from_bytes(bs, byteorder='big')
                 data = f_r.read(cnt)
 
-                _data = XF.decrypt(data)
+                _data = XF_DATA.decrypt(data)
                 f_w.write(_data)
 
                 with lock:
-                    current_file_size.value += len(data) + config.CONFIG__BYTES
+                    current_file_size.value += cnt + config.CONFIG__BYTES
                     _pre = current_file_size.value*10000 // total_file_size.value
                     if _pre != pre:
                         pre = _pre
@@ -124,10 +137,9 @@ if __name__ == "__main__":
         new_file_name = os.path.join(config.CONFIG__OUTPUT_DIR, _base_name)
 
         if config.CONFIG__IS_ENC:
-            files.append(util.file.XFile(_file_name, new_file_name + config.CONFIG__SUFFIX))
+            files.append(util.file.XFile(_file_name, new_file_name))
         else:
-            assert _file_name.endswith(config.CONFIG__SUFFIX)
-            files.append(util.file.XFile(_file_name, new_file_name[:-len(config.CONFIG__SUFFIX)]))
+            files.append(util.file.XFile(_file_name, new_file_name))
 
     if os.path.exists(config.CONFIG__OUTPUT_DIR):
         if os.path.isfile(config.CONFIG__OUTPUT_DIR):
@@ -165,7 +177,7 @@ if __name__ == "__main__":
 
         with multiprocessing.Pool(processes=cpus) as pool:
             for f in files:
-                results.append(pool.apply_async(func, args=(f, lock, current_file_size, total_file_size, sk.XF)))
+                results.append(pool.apply_async(func, args=(f, lock, current_file_size, total_file_size, sk.XF_NAME, sk.XF_DATA)))
 
             pool.close()
             pool.join()

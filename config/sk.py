@@ -8,21 +8,26 @@ __all__ = [
 
 def create_pk(passwd=None):
     if not passwd:
-        sk = Fernet.generate_key()
+        sk1 = Fernet.generate_key()
+        sk2 = Fernet.generate_key()
         print(f'Keep the {sk_file} some place safe! \n'
               'If you lose it you’ll no longer be able to decrypt messages.\n')
     else:
         import hashlib
         import base64
-        sk = base64.urlsafe_b64encode(hashlib.sha256(passwd.encode()).digest())
+        hl = hashlib.sha512(passwd.encode()).digest()
+        sk1 = base64.urlsafe_b64encode(hl[:32])
+        sk2 = base64.urlsafe_b64encode(hl[32:])
         print(f'Keep the password {passwd} or/and {sk_file} some place safe! \n'
               'If you lose it you’ll no longer be able to decrypt messages.\n')
 
     with open(sk_file, 'wb') as f:
-        f.write(sk)
+        f.write(sk1)
+        f.write(sk2)
 
 
-XF = None
+XF_NAME = None
+XF_DATA = None
 sk_name = 'xc_enc.sk'
 sk_file = config.config_dir / sk_name
 if sk_file.exists():
@@ -34,4 +39,5 @@ else:
 
 with open(sk_file, 'rb') as f:
     sk = f.read()
-    XF = Fernet(sk)
+    XF_NAME = Fernet(sk[:44])
+    XF_DATA = Fernet(sk[44:])
