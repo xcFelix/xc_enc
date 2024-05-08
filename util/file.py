@@ -1,5 +1,7 @@
 import os
-import config
+
+
+st = { None }
 
 
 class XFile:
@@ -8,7 +10,10 @@ class XFile:
 
         dirname = os.path.dirname(output_path)
         basename = os.path.basename(output_path)
-        r_name = str(int.from_bytes(os.urandom(8), byteorder='big'))
+        r_name = None
+        while r_name in st:
+            r_name = str(int.from_bytes(os.urandom(8), byteorder='big'))
+        st.add(r_name)
 
         self.output_path = os.path.join(dirname, r_name)
         self.origin_name = basename
