@@ -1,9 +1,10 @@
 from cryptography.fernet import Fernet
 
-import config
+from .. import config
 
 __all__ = [
-    'XF'
+    'XF_NAME',
+    'XF_DATA',
 ]
 
 def create_pk(passwd=None):

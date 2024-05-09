@@ -3,8 +3,8 @@ import os
 import multiprocessing
 import ctypes
 
-import config
-import util
+from . import config
+from . import util
 
 
 files = []
@@ -103,10 +103,10 @@ def parse_arg():
     return args
 
 
-if __name__ == "__main__":
+def main():
     args = parse_arg()
 
-    from config import sk
+    from .config import sk
 
     if args.enc:
         config.CONFIG__IS_ENC = True
@@ -177,7 +177,8 @@ if __name__ == "__main__":
 
         with multiprocessing.Pool(processes=cpus) as pool:
             for f in files:
-                results.append(pool.apply_async(func, args=(f, lock, current_file_size, total_file_size, sk.XF_NAME, sk.XF_DATA)))
+                results.append(
+                    pool.apply_async(func, args=(f, lock, current_file_size, total_file_size, sk.XF_NAME, sk.XF_DATA)))
 
             pool.close()
             pool.join()
@@ -195,3 +196,6 @@ if __name__ == "__main__":
         print(f'一共{_len}个，成功{succ}个 ✅')
     else:
         print(f'一共{_len}个，成功{succ}个 ❌')
+
+if __name__ == "__main__":
+    main()
